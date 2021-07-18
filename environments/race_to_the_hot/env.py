@@ -23,7 +23,7 @@ import time
 tf.compat.v1.enable_v2_behavior()
 
 
-class find_the_dot(py_environment.PyEnvironment):
+class race_to_the_hot(py_environment.PyEnvironment):
     def __init__(self, window_name):
         self.score = {'win': 0, 'loss': 0, 'timeout': 0}
         self.score_history = []

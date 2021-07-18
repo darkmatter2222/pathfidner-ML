@@ -1,27 +1,27 @@
 {
   "files": {
     "tensorboard_logs": {
-      "base_dir":  "N:\\Halite-RL-DQN",
+      "base_dir":  "N:\\pathfinder-ML",
       "dir": "tensorboard"
     },
     "policy": {
-      "base_dir":  "N:\\Halite-RL-DQN",
+      "base_dir":  "N:\\pathfinder-ML",
       "save_policy": {
         "dir": "save",
-        "name": "find_the_dot_v0"
+        "name": "race_to_the_hot"
       },
       "checkpoint_policy": {
         "dir": "checkpoint",
-        "name": "find_the_dot_v0"
+        "name": "race_to_the_hot"
       },
       "images": {
         "stills": {
           "dir": "stills",
-          "name": "find_the_dot_v0"
+          "name": "race_to_the_hot"
         },
         "gifs": {
           "dir": "gifs",
-          "name": "find_the_dot_v0"
+          "name": "race_to_the_hot"
         }
       }
     }
