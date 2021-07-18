@@ -129,12 +129,6 @@ dataset = _replay_buffer.as_dataset(
 
 _agent.train = common.function(_agent.train)
 
-_agent.train_step_counter.assign(0)
-print('initial collect...')
-avg_return = compute_avg_return(_eval_env, _agent.policy, _num_eval_episodes)
-returns = [avg_return]
-iterator = iter(dataset)
-
 train_checkpointer = common.Checkpointer(
     ckpt_dir=_checkpoint_policy_dir,
     max_to_keep=1,
@@ -150,6 +144,12 @@ restore_network = True
 
 if restore_network:
     train_checkpointer.initialize_or_restore()
+
+_agent.train_step_counter.assign(0)
+print('initial collect...')
+avg_return = compute_avg_return(_eval_env, _agent.policy, _num_eval_episodes)
+returns = [avg_return]
+iterator = iter(dataset)
 
 _train_env.pyenv.envs[0].start_chart()
 

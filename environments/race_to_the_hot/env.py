@@ -27,7 +27,6 @@ class race_to_the_hot(py_environment.PyEnvironment):
     def __init__(self, window_name):
         self.score = {'win': 0, 'loss': 0, 'timeout': 0}
         self.score_history = []
-        self.plotting_data = []
         self.start_time = datetime.datetime.now()
         self.board_width = 15
         self.board_height = 15
@@ -81,31 +80,31 @@ class race_to_the_hot(py_environment.PyEnvironment):
 
     def render_chart(self):
         while True:
-            time.sleep(1)
+            time.sleep(5)
             try:
-
                 if len(self.score_history) == 0:
                     continue
 
+                three_k_history = self.score_history[-3000:]
+
+                df_record = []
+                x = 0
+                for record in three_k_history:
+                    df_record.append([x, record, 1])
+
+                df = pd.DataFrame(columns=['interval', 'value', 'tick'], data=df_record)
+
+                math.floor((df[-3000:]['value'].tolist().count('win') * 100) / 100)
+                continue
+
+                plotting_data = [0] * 3000
                 intervals = [10, 50, 100, 500, 1000]
 
-                for interval in intervals:
-                    this_row = []
-                    if len(self.score_history) > interval:
-                        working_set = self.score_history[-interval:]
-                        this_row.append(interval)
-                        this_row.append(math.floor((working_set.count('win') * 100) / len(working_set)))
-                    else:
-                        this_row.append(interval)
-                        this_row.append(0)
+                for index in range(100, len(df.index)):
+                    plotting_data[index] = math.floor((df[-1000:]['value'].tolist().count('win') * 100) / 100)
 
-                    if len(self.plotting_data) > 3000:
-                        del self.plotting_data[0]
 
-                    self.plotting_data.append(this_row)
-
-                df = pd.DataFrame(columns=['interval', 'value'], data=self.plotting_data)
-                df['tick'] = df.index
+                df = pd.DataFrame(columns=['interval', 'value', 'tick'], data=plotting_data)
 
                 g = sns.lmplot(x='tick', y="value", hue='interval', data=df, height=8, aspect=2)
 
