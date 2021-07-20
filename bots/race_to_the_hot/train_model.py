@@ -169,10 +169,20 @@ while True:
         print('Eval Started...')
         avg_return = compute_avg_return(_eval_env, _agent.policy, _num_eval_episodes)
         returns.append(avg_return)
-        train_checkpointer.save(_train_step_counter)
+
+        try:
+            train_checkpointer.save(_train_step_counter)
+        except Exception as ie:
+            print('failed checkpointer')
+            print(ie)
         print('step = {0}: Average Return = {1:.2f}'.format(step, avg_return))
-        tf_policy_saver.save(_save_policy_dir)
+        try:
+            tf_policy_saver.save(_save_policy_dir)
+        except Exception as ie:
+            print('failed saver')
+            print(ie)
     except Exception as e:
+        print('failed global loop')
         print(e)
 
 
