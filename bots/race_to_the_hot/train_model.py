@@ -24,13 +24,13 @@ tf.compat.v1.enable_v2_behavior()
 
 # setting hyperparameters
 _num_iterations = 20000000  # @param {type:"integer"}
-_initial_collect_steps = 10000  # @param {type:"integer"}
+_initial_collect_steps = 10  # @param {type:"integer"}
 _collect_steps_per_iteration = 100  # @param {type:"integer"}
 _replay_buffer_max_length = 10000  # @param {type:"integer"}
 _batch_size = 64 * 10  # @param {type:"integer"}
 _learning_rate = 0.0001  # @param {type:"number"}
-_train_steps = 4000  # @param {type:"integer"}
-_num_eval_episodes = 100  # @param {type:"integer"}
+_train_steps = 1000  # @param {type:"integer"}
+_num_eval_episodes = 10  # @param {type:"integer"}
 
 # build policy directories
 _save_policy_dir = os.path.join(_config['files']['policy']['base_dir'],
@@ -154,21 +154,25 @@ iterator = iter(dataset)
 _train_env.pyenv.envs[0].start_chart()
 
 while True:
-    print('Training...')
-    for _ in tqdm(range(_train_steps)):
-        for _ in range(_collect_steps_per_iteration):
-            collect_step(_train_env, _agent.collect_policy, _replay_buffer)
+    try:
+        print('Training...')
+        for _ in tqdm(range(_train_steps)):
+            for _ in range(_collect_steps_per_iteration):
+                collect_step(_train_env, _agent.collect_policy, _replay_buffer)
 
-        experience, unused_info = next(iterator)
-        train_loss = _agent.train(experience).loss
+            experience, unused_info = next(iterator)
+            train_loss = _agent.train(experience).loss
 
-        step = _agent.train_step_counter.numpy()
+            step = _agent.train_step_counter.numpy()
 
-    print('step = {0}: loss = {1}'.format(step, train_loss))
-    print('Eval Started...')
-    avg_return = compute_avg_return(_eval_env, _agent.policy, _num_eval_episodes)
-    returns.append(avg_return)
-    train_checkpointer.save(_train_step_counter)
-    print('step = {0}: Average Return = {1:.2f}'.format(step, avg_return))
-    tf_policy_saver.save(_save_policy_dir)
+        print('step = {0}: loss = {1}'.format(step, train_loss))
+        print('Eval Started...')
+        avg_return = compute_avg_return(_eval_env, _agent.policy, _num_eval_episodes)
+        returns.append(avg_return)
+        train_checkpointer.save(_train_step_counter)
+        print('step = {0}: Average Return = {1:.2f}'.format(step, avg_return))
+        tf_policy_saver.save(_save_policy_dir)
+    except Exception as e:
+        print(e)
+
 

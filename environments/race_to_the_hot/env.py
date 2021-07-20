@@ -94,14 +94,18 @@ class race_to_the_hot(py_environment.PyEnvironment):
 
                 df = pd.DataFrame(columns=['interval', 'value', 'tick'], data=df_record)
 
-                math.floor((df[-3000:]['value'].tolist().count('win') * 100) / 100)
-                continue
-
-                plotting_data = [0] * 3000
+                plotting_data = []
                 intervals = [10, 50, 100, 500, 1000]
 
-                for index in range(100, len(df.index)):
-                    plotting_data[index] = math.floor((df[-1000:]['value'].tolist().count('win') * 100) / 100)
+
+
+                z = 0
+                for interval in intervals:
+                    y = interval
+                    for index in range(interval, len(df.index)):
+                        plotting_data.append([interval, math.floor((df[index-interval:interval+(index-interval)]['value'].tolist().count('win') * 100) / interval), y])
+                        y += 1
+                        z += 1
 
 
                 df = pd.DataFrame(columns=['interval', 'value', 'tick'], data=plotting_data)
