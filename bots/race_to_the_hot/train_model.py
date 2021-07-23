@@ -160,8 +160,21 @@ class master():
             except:
                 lol =1
 
-
-
+    def perform_checkpoint_save(self):
+        while True:
+            time.sleep(60)
+            try:
+                self.train_checkpointer.save(self.train_step_counter)
+                print('checkpointed')
+            except Exception as ie:
+                print('failed checkpointer')
+                print(ie)
+            try:
+                self.tf_policy_saver.save(self.save_policy_dir)
+                print('saved')
+            except Exception as ie:
+                print('failed saver')
+                print(ie)
 
 
 rtth = master()
@@ -181,28 +194,7 @@ x.start()
 x = threading.Thread(target=rtth.perform_training, args=())
 x.start()
 
-#rtth.perform_collection()
-
-
-
-
-#while True:
-#%    try:
-#        print('Training...')
-#        rtth.perform_collection()
-#
- #       try:
- #           rtth.train_checkpointer.save(rtth.train_step_counter)
- #       except Exception as ie:
- #           print('failed checkpointer')
- #           print(ie)
- #       try:
- #           rtth.tf_policy_saver.save(rtth.save_policy_dir)
- #       except Exception as ie:
- #           print('failed saver')
- #           print(ie)
- #   except Exception as e:
- #       print('failed global loop')
-  #      print(e)
+x = threading.Thread(target=rtth.perform_checkpoint_save, args=())
+x.start()
 
 
