@@ -1,36 +1,30 @@
 import datetime
 import json
-import math
 import os
 import random
-import pandas as pd
-import seaborn as sns
-import cv2
 import numpy as np
 import scipy as sp
 import tensorflow as tf
 from tf_agents.environments import py_environment
-from matplotlib.backends.backend_agg import FigureCanvasAgg
 import matplotlib
 matplotlib.use('Agg')
-from matplotlib.figure import Figure
 from tf_agents.specs import array_spec
 from tf_agents.trajectories import time_step as ts
-import matplotlib.pyplot as plt
-import threading
-import time
 
 tf.compat.v1.enable_v2_behavior()
 
 
 class race_to_the_hot(py_environment.PyEnvironment):
     def __init__(self, window_name):
-        self.score = {'win': 0, 'loss': 0, 'timeout': 0}
-        self.score_history = []
-        self.start_time = datetime.datetime.now()
+        self.this_game_boards = []
+        self.last_game_boards = []
+        self.real_time_chart = []
+        self.real_time_game = []
         self.board_width = 15
         self.board_height = 15
         self.master_step_counter = 0
+        self.image_counter = 0
+        self.gif_counter = 0
         self.uuid = window_name
         self.sigma_y = self.board_width / 2
         self.sigma_x = self.board_height / 2
@@ -70,110 +64,7 @@ class race_to_the_hot(py_environment.PyEnvironment):
                                         _config['files']['policy']['images']['stills']['dir'],
                                         _config['files']['policy']['images']['stills']['name'])
 
-    def start_chart(self):
-        x = threading.Thread(target=self.render_chart, args=())
-        x.start()
 
-    def append_score(self, action, count):
-        self.score[action] += count
-        self.score_history.append(action)
-
-    def render_chart(self):
-        while True:
-            time.sleep(5)
-            try:
-                if len(self.score_history) == 0:
-                    continue
-
-                three_k_history = self.score_history[-3000:]
-
-                df_record = []
-                x = 0
-                for record in three_k_history:
-                    df_record.append([x, record, 1])
-
-                df = pd.DataFrame(columns=['interval', 'value', 'tick'], data=df_record)
-
-                plotting_data = []
-                intervals = [10, 50, 100, 500, 1000]
-
-
-
-                z = 0
-                for interval in intervals:
-                    y = interval
-                    for index in range(interval, len(df.index)):
-                        plotting_data.append([interval, math.floor((df[index-interval:interval+(index-interval)]['value'].tolist().count('win') * 100) / interval), y])
-                        y += 1
-                        z += 1
-
-
-                df = pd.DataFrame(columns=['interval', 'value', 'tick'], data=plotting_data)
-
-                g = sns.lmplot(x='tick', y="value", hue='interval', data=df, height=8, aspect=2)
-
-                canvas = FigureCanvasAgg(g.fig)
-
-                # your plotting here
-
-                canvas.draw()
-                s, (width, height) = canvas.print_to_buffer()
-
-                # Option 2a: Convert to a NumPy array.
-                X = np.fromstring(s, np.uint8).reshape((height, width, 4))
-
-                cv2.imshow('Real Time Chart', X)
-                cv2.waitKey(1)
-                plt.close('all')
-            except Exception as e:
-                print(e)
-
-
-    def render_image(self, directive='unknown'):
-        if not self.enable_render_image:
-            return
-
-
-
-        new_image = np.zeros([self.board_height, self.board_width, 3])
-        font = cv2.FONT_HERSHEY_SIMPLEX
-        for height in range(self.board_height):
-            for width in range(self.board_width):
-                new_image[height][width] = (0, self._state[height][width][2], 0)
-                if self._state[height][width][0] == 1:
-                    new_image[height][width] = (0, 1, 0)
-                if self._state[height][width][1] == 1:
-                    if directive == 'Exploite':
-                        new_image[height][width] = (1, 0, 0)
-                    elif directive == 'Explore':
-                        new_image[height][width] = (0, 0, 1)
-                    else:
-                        new_image[height][width] = (1, 1, 1)
-
-        n = 75
-        new_image = new_image.repeat(n, axis=0).repeat(n, axis=1)
-
-        total = self.score['loss'] + self.score['win'] + self.score['timeout']
-        time_delta = (datetime.datetime.now() - self.start_time)
-        total_seconds = time_delta.total_seconds()
-
-        cv2.putText(new_image, f'Episode:{self.episode}', (10, 50), font, 1, (0, 0, 1), 2)
-        cv2.putText(new_image, f'Steps:{self.master_step_counter}', (10, 100), font, 1, (0, 0, 1), 2)
-        if not total == 0:
-            cv2.putText(new_image, f'Win:{self.score["win"]}/{math.floor((self.score["win"] * 100) / total)}%', (10, 150), font, 1,
-                        (0, 0, 1), 2)
-            cv2.putText(new_image, f'Loss:{self.score["loss"]}/{math.floor((self.score["loss"] * 100) / total)}%', (10, 200), font, 1,
-                        (0, 0, 1), 2)
-            cv2.putText(new_image, f'Timeout:{self.score["timeout"]}/{math.floor((self.score["timeout"] * 100) / total)}%', (10, 250), font, 1,
-                        (0, 0, 1), 2)
-            cv2.putText(new_image, f'Seconds:{total_seconds}', (10, 300), font, 1,
-                        (0, 0, 1), 2)
-        cv2.imshow('Real Time Play', new_image)
-        new_image = new_image * 254
-        if self.episode % 10 == 0:
-            cv2.imwrite(f'{self._images_dir}\\{self.image_write_counter}.jpg', new_image)
-            self.image_write_counter += 1
-        cv2.waitKey(1)
 
 
     def set_goal(self):
@@ -225,9 +116,6 @@ class race_to_the_hot(py_environment.PyEnvironment):
         self.player_location['y'] = rand_y
         self._state[rand_y, rand_x][1] = 1
 
-    def get_game_history(self):
-        return self.game_history
-
     def action_spec(self):
         return_object = self._action_spec
         return return_object
@@ -246,8 +134,10 @@ class race_to_the_hot(py_environment.PyEnvironment):
         self.game_history = []
         self.image_history = []
         self.state_history = [self._state] * self.frames
-        self.render_image()
+        self.last_game_boards = self.this_game_boards.copy()
+        self.this_game_boards = []
         self.episode += 1
+
         return_object = ts.restart(np.array(self.state_history, dtype=np.int32))
         return return_object
 
@@ -305,19 +195,16 @@ class race_to_the_hot(py_environment.PyEnvironment):
         if self.this_turn == self.max_turns - 1:
             info = 'Max Tries'
             self._episode_ended = True
-            self.append_score('timeout', 1)
             reward += loose_reward
         else:
             # Loose Fall Off Map?
             if self.player_location['y'] < 0 or self.player_location['x'] < 0 or \
                     self.player_location['x'] >= self.board_width or self.player_location['y'] >= self.board_height:
                 info = 'Loose Fall Off Map'
-                self.append_score('loss', 1)
                 self._episode_ended = True
                 reward += loose_reward
             elif self._state[self.player_location['y'], self.player_location['x']][0] == 1:
                 info = 'Won Got the Goal'
-                self.append_score('win', 1)
                 self._episode_ended = True
                 reward += win_reward
             elif self._state[self.player_location['y'], self.player_location['x']][2] != 0:
@@ -338,9 +225,9 @@ class race_to_the_hot(py_environment.PyEnvironment):
         self.game_history.append(info)
         self.total_reward += reward
         self.this_turn += 1
-        self.render_image()
 
         self.state_history.append(self._state)
+
         del self.state_history[:1]
         if self._episode_ended:
             return_object = ts.termination(np.array(self.state_history, dtype=np.int32), reward)

@@ -140,7 +140,7 @@ train_checkpointer = common.Checkpointer(
 
 tf_policy_saver = policy_saver.PolicySaver(_agent.policy)
 
-restore_network = True
+restore_network = False
 
 if restore_network:
     train_checkpointer.initialize_or_restore()
@@ -150,8 +150,6 @@ print('initial collect...')
 avg_return = compute_avg_return(_eval_env, _agent.policy, _num_eval_episodes)
 returns = [avg_return]
 iterator = iter(dataset)
-
-_train_env.pyenv.envs[0].start_chart()
 
 while True:
     try:
