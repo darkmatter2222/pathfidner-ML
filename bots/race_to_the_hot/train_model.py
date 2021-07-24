@@ -114,18 +114,33 @@ class master():
 
         self.tf_policy_saver = policy_saver.PolicySaver(self.agent.policy)
 
-    def compute_avg_return(self, environment, policy, num_episodes=10):
+    def compute_avg_return(self, environment, policy, num_episodes=1000):
+        score = {'win': 0, 'loss': 0, 'timeout': 0}
         total_return = 0.0
-        for _ in tqdm(range(num_episodes)):
+        for _ in range(num_episodes):
             time_step = environment.reset()
             episode_return = 0.0
+
             while not time_step.is_last():
                 action_step = policy.action(time_step)
                 time_step = environment.step(action_step.action)
                 episode_return += time_step.reward
             total_return += episode_return
+            history = environment._env.envs[0].score_history
+            final_step = history[len(history) - 1]
+            if final_step == 'timeout':
+                score['timeout'] += 1
+            elif final_step == 'loss':
+                score['loss'] += 1
+            elif final_step == 'win':
+                score['win'] += 1
+
         avg_return = total_return / num_episodes
-        return avg_return.numpy()[0]
+        return avg_return.numpy()[0], score
+
+
+
+
 
     def collect_step(self, environment, policy, buffer):
         time_step = environment.current_time_step()
@@ -160,9 +175,18 @@ class master():
             except:
                 lol =1
 
+    def perform_testing(self):
+        while True:
+            time.sleep(5)
+            try:
+                avg_return, score = self.compute_avg_return(self.eval_env, self.agent.collect_policy)
+                print('Average Return = {0:.2f}, score {1}'.format(avg_return, score))
+            except:
+                lol =1
+
     def perform_checkpoint_save(self):
         while True:
-            time.sleep(60)
+            time.sleep(300)
             try:
                 self.train_checkpointer.save(self.train_step_counter)
                 print('checkpointed')
@@ -182,7 +206,7 @@ rtth.build_network()
 rtth.build_replay_buffer()
 rtth.save_checkpoint_init()
 
-restore_network = False
+restore_network = True
 if restore_network:
     rtth.train_checkpointer.initialize_or_restore()
 print('initial collect...')
@@ -195,6 +219,9 @@ x = threading.Thread(target=rtth.perform_training, args=())
 x.start()
 
 x = threading.Thread(target=rtth.perform_checkpoint_save, args=())
+x.start()
+
+x = threading.Thread(target=rtth.perform_testing, args=())
 x.start()
 
 

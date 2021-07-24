@@ -36,13 +36,13 @@ def compute_avg_return(environment, policy, num_episodes=1000):
             time_step = environment.step(action_step.action)
             episode_return += time_step.reward
         total_return += episode_return
-        history = environment._env.envs[0].get_game_history()
+        history = environment._env.envs[0].score_history
         final_step = history[len(history) - 1]
-        if final_step == 'Max Tries':
+        if final_step == 'timeout':
             score['timeout'] += 1
-        elif final_step == 'Loose Fall Off Map':
+        elif final_step == 'loss':
             score['loss'] += 1
-        elif final_step == 'Won Got the Goal':
+        elif final_step == 'win':
             score['win'] += 1
 
     avg_return = total_return / num_episodes

@@ -10,18 +10,19 @@ import matplotlib
 matplotlib.use('Agg')
 from tf_agents.specs import array_spec
 from tf_agents.trajectories import time_step as ts
-
 tf.compat.v1.enable_v2_behavior()
 
 
 class race_to_the_hot(py_environment.PyEnvironment):
     def __init__(self, window_name):
+        self.score_history = []
+        self.start_time = datetime.datetime.now()
         self.this_game_boards = []
         self.last_game_boards = []
         self.real_time_chart = []
         self.real_time_game = []
-        self.board_width = 15
-        self.board_height = 15
+        self.board_width = 20
+        self.board_height = 20
         self.master_step_counter = 0
         self.image_counter = 0
         self.gif_counter = 0
@@ -64,8 +65,10 @@ class race_to_the_hot(py_environment.PyEnvironment):
                                         _config['files']['policy']['images']['stills']['dir'],
                                         _config['files']['policy']['images']['stills']['name'])
 
-
-
+    def append_score(self, action, count):
+        self.score_history.append(action)
+        if len(self.score_history) > 10:
+            del self.score_history[0]
 
     def set_goal(self):
         self.set_player()
@@ -195,16 +198,19 @@ class race_to_the_hot(py_environment.PyEnvironment):
         if self.this_turn == self.max_turns - 1:
             info = 'Max Tries'
             self._episode_ended = True
+            self.append_score('timeout', 1)
             reward += loose_reward
         else:
             # Loose Fall Off Map?
             if self.player_location['y'] < 0 or self.player_location['x'] < 0 or \
                     self.player_location['x'] >= self.board_width or self.player_location['y'] >= self.board_height:
                 info = 'Loose Fall Off Map'
+                self.append_score('loss', 1)
                 self._episode_ended = True
                 reward += loose_reward
             elif self._state[self.player_location['y'], self.player_location['x']][0] == 1:
                 info = 'Won Got the Goal'
+                self.append_score('win', 1)
                 self._episode_ended = True
                 reward += win_reward
             elif self._state[self.player_location['y'], self.player_location['x']][2] != 0:
