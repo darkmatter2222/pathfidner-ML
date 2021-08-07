@@ -23,6 +23,8 @@ with open('config.json') as f:
 
 tf.compat.v1.enable_v2_behavior()
 
+tf.config.set_visible_devices([], 'GPU')
+
 
 class master():
     def __init__(self):
@@ -206,7 +208,7 @@ rtth.build_network()
 rtth.build_replay_buffer()
 rtth.save_checkpoint_init()
 
-restore_network = True
+restore_network = False
 if restore_network:
     rtth.train_checkpointer.initialize_or_restore()
 print('initial collect...')

@@ -8,20 +8,20 @@
       "base_dir":  "N:\\pathfinder-ML",
       "save_policy": {
         "dir": "save",
-        "name": "race_to_the_hot_cdqn"
+        "name": "race_to_the_hot"
       },
       "checkpoint_policy": {
         "dir": "checkpoint",
-        "name": "race_to_the_hot_cdqn"
+        "name": "race_to_the_hot"
       },
       "images": {
         "stills": {
           "dir": "stills",
-          "name": "race_to_the_hot_cdqn"
+          "name": "race_to_the_hot"
         },
         "gifs": {
           "dir": "gifs",
-          "name": "race_to_the_hot_cdqn"
+          "name": "race_to_the_hot"
         }
       }
     }

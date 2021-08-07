@@ -1,6 +1,5 @@
 import tensorflow as tf
-from tf_agents.agents.categorical_dqn import categorical_dqn_agent
-from tf_agents.networks import categorical_q_network
+from tf_agents.agents.dqn import dqn_agent
 from tf_agents.environments import tf_py_environment
 from tf_agents.networks import q_network
 from tf_agents.policies import random_tf_policy
@@ -24,6 +23,8 @@ with open('config.json') as f:
 
 tf.compat.v1.enable_v2_behavior()
 
+tf.config.set_visible_devices([], 'GPU')
+
 
 class master():
     def __init__(self):
@@ -32,16 +33,9 @@ class master():
         self.collect_steps_per_iteration = 100
         self.replay_buffer_max_length = 10000
         self.batch_size = 64 * 10
-        self.learning_rate = 0.0001
+        self.learning_rate = 0.000001
         self.train_steps = 1000
         self.num_eval_episodes = 10
-
-        self.fc_layer_params = (100,)
-        self.num_atoms = 51  # @param {type:"integer"}
-        self.min_q_value = -30  # @param {type:"integer"}
-        self.max_q_value = 6  # @param {type:"integer"}
-        self.n_step_update = 2  # @param {type:"integer"}
-        self.gamma = 0.99
 
         self.save_policy_dir = os.path.join(_config['files']['policy']['base_dir'],
                                         _config['files']['policy']['save_policy']['dir'],
@@ -67,27 +61,25 @@ class master():
         self.iterator = None
 
     def build_network(self):
-        categorical_q_net = categorical_q_network.CategoricalQNetwork(
+        _fc_layer_params = (512,)
+
+        _q_net = q_network.QNetwork(
             self.train_env.observation_spec(),
             self.train_env.action_spec(),
-            num_atoms=self.num_atoms,
-            fc_layer_params=self.fc_layer_params)
+            fc_layer_params=_fc_layer_params)
 
-        optimizer = tf.compat.v1.train.AdamOptimizer(learning_rate=self.learning_rate)
+        _optimizer = tf.compat.v1.train.AdamOptimizer(learning_rate=self.learning_rate)
 
-        self.train_step_counter = tf.compat.v2.Variable(0)
+        self.train_step_counter = tf.Variable(0)
 
-        self.agent = categorical_dqn_agent.CategoricalDqnAgent(
+        self.agent = dqn_agent.DqnAgent(
             self.train_env.time_step_spec(),
             self.train_env.action_spec(),
-            categorical_q_network=categorical_q_net,
-            optimizer=optimizer,
-            min_q_value=self.min_q_value,
-            max_q_value=self.max_q_value,
-            n_step_update=self.n_step_update,
+            q_network=_q_net,
+            optimizer=_optimizer,
             td_errors_loss_fn=common.element_wise_squared_loss,
-            gamma=self.gamma,
             train_step_counter=self.train_step_counter)
+
         self.agent.initialize()
 
         _eval_policy = self.agent.policy

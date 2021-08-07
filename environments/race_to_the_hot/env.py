@@ -21,8 +21,8 @@ class race_to_the_hot(py_environment.PyEnvironment):
         self.last_game_boards = []
         self.real_time_chart = []
         self.real_time_game = []
-        self.board_width = 7
-        self.board_height = 7
+        self.board_width = 25
+        self.board_height = 25
         self.master_step_counter = 0
         self.image_counter = 0
         self.gif_counter = 0
