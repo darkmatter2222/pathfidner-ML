@@ -11,8 +11,10 @@ from tqdm import tqdm
 import threading
 import os
 import json
+import numpy as np
 from tf_agents.policies import policy_saver
 from multiprocessing import Process
+from tf_agents.trajectories import time_step as ts
 import time
 
 # loading configuration...
@@ -141,14 +143,20 @@ class master():
         return avg_return.numpy()[0], score
 
 
-
-
-
     def collect_step(self, environment, policy, buffer):
         time_step = environment.current_time_step()
-        action_step = policy.action(time_step)
+
+        observation_root = time_step.observation.numpy()
+        observation_root_padded = np.array([np.pad(observation_root[0], (2,), 'median')])
+        player_matrix = observation_root_padded[:, 1, :, :, 3]
+        player_location = np.unravel_index(np.argmax(player_matrix), np.array(player_matrix).shape)[1:3]
+        new_observation = observation_root_padded[:, 2:102, player_location[0] - 1:player_location[0] + 2,
+                          player_location[1] - 1:player_location[1] + 2, 2:5]
+
+        new_ts = ts.TimeStep(time_step.step_type, time_step.reward, time_step.discount, new_observation)
+        action_step = policy.action(new_ts)
         next_time_step = environment.step(action_step.action)
-        traj = trajectory.from_transition(time_step, action_step, next_time_step)
+        traj = trajectory.from_transition(new_ts, action_step, next_time_step)
         buffer.add_batch(traj)
 
     def collect_step_threaded(self, environment, policy, buffer):
