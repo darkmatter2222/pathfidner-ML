@@ -16,6 +16,7 @@ from tf_agents.policies import policy_saver
 from multiprocessing import Process
 from tf_agents.trajectories import time_step as ts
 import time
+from tf_agents.specs import array_spec
 
 # loading configuration...
 print('loading configuration...')
@@ -38,6 +39,8 @@ class master():
         self.learning_rate = 0.000001
         self.train_steps = 1000
         self.num_eval_episodes = 10
+
+        self.render_distance = (3, 3)
 
         self.save_policy_dir = os.path.join(_config['files']['policy']['base_dir'],
                                         _config['files']['policy']['save_policy']['dir'],
@@ -62,17 +65,30 @@ class master():
         self.train_step_counter = None
         self.iterator = None
 
+    def apply_render_distance_observation_spec(self, original_observation_spec, render_distance):
+        return array_spec.BoundedArraySpec(
+            shape=(original_observation_spec.shape[0],
+                   render_distance[0],
+                   render_distance[1],
+                   original_observation_spec.shape[3]),
+            dtype=np.int32,
+            minimum=original_observation_spec.minimum,
+            maximum=original_observation_spec.maximum,
+            name=original_observation_spec.name)
+
     def build_network(self):
         _fc_layer_params = (512,)
 
         _q_net = q_network.QNetwork(
-            self.train_env.observation_spec(),
+            self.apply_render_distance_observation_spec(self.train_env.observation_spec(), self.render_distance),
             self.train_env.action_spec(),
             fc_layer_params=_fc_layer_params)
 
         _optimizer = tf.compat.v1.train.AdamOptimizer(learning_rate=self.learning_rate)
 
         self.train_step_counter = tf.Variable(0)
+
+        original_time_step_spec = self.train_env.time_step_spec()
 
         self.agent = dqn_agent.DqnAgent(
             self.train_env.time_step_spec(),
