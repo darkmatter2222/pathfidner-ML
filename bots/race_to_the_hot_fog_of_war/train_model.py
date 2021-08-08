@@ -88,6 +88,8 @@ class master():
         observation_root_padded = np.array([np.pad(observation_root[0], (2,), 'median')])
         player_matrix = observation_root_padded[:, 1, :, :, 3]
         player_location = np.unravel_index(np.argmax(player_matrix), np.array(player_matrix).shape)[1:3]
+        if player_location == (0, 0):
+            player_location = (1, 1)
         new_observation = observation_root_padded[:, 2:102, player_location[0] - 1:player_location[0] + 2,
                           player_location[1] - 1:player_location[1] + 2, 2:5]
 
@@ -195,8 +197,6 @@ class master():
 
         time_step = self.apply_render_distance_time_step(time_step)
 
-        print(time_step.observation.shape)
-
         action_step = policy.action(time_step)
         next_time_step = environment.step(action_step.action)
 
@@ -272,12 +272,12 @@ x = threading.Thread(target=rtth.perform_collection, args=())
 x.start()
 
 x = threading.Thread(target=rtth.perform_training, args=())
-#x.start()
+x.start()
 
 x = threading.Thread(target=rtth.perform_checkpoint_save, args=())
-#x.start()
+x.start()
 
 x = threading.Thread(target=rtth.perform_testing, args=())
-#x.start()
+x.start()
 
 
