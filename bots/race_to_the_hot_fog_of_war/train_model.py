@@ -16,7 +16,7 @@ from tf_agents.policies import policy_saver
 from multiprocessing import Process
 from tf_agents.trajectories import time_step as ts
 import time
-from tf_agents.specs import array_spec
+from tf_agents.specs import array_spec, tensor_spec
 
 # loading configuration...
 print('loading configuration...')
@@ -66,7 +66,7 @@ class master():
         self.iterator = None
 
     def apply_render_distance_observation_spec(self, original_observation_spec, render_distance):
-        return array_spec.BoundedArraySpec(
+        return tensor_spec.BoundedTensorSpec(
             shape=(original_observation_spec.shape[0],
                    render_distance[0],
                    render_distance[1],
@@ -75,6 +75,30 @@ class master():
             minimum=original_observation_spec.minimum,
             maximum=original_observation_spec.maximum,
             name=original_observation_spec.name)
+
+    def apply_render_distance_time_step_spec(self, original_time_step_spec, render_distance):
+        return ts.TimeStep(original_time_step_spec.step_type,
+                           original_time_step_spec.reward,
+                           original_time_step_spec.discount,
+                           self.apply_render_distance_observation_spec(original_time_step_spec.observation,
+                                                                       render_distance))
+
+    def apply_render_distance_time_step(self, original_time_step):
+        observation_root = original_time_step.observation.numpy()
+        observation_root_padded = np.array([np.pad(observation_root[0], (2,), 'median')])
+        player_matrix = observation_root_padded[:, 1, :, :, 3]
+        player_location = np.unravel_index(np.argmax(player_matrix), np.array(player_matrix).shape)[1:3]
+        new_observation = observation_root_padded[:, 2:102, player_location[0] - 1:player_location[0] + 2,
+                          player_location[1] - 1:player_location[1] + 2, 2:5]
+
+        if new_observation.shape == (1, 100, 0, 0, 3):
+            lol = 1
+
+        return ts.TimeStep(original_time_step.step_type,
+                             original_time_step.reward,
+                             original_time_step.discount,
+                             tf.constant(new_observation,
+                                       dtype=np.int32))
 
     def build_network(self):
         _fc_layer_params = (512,)
@@ -88,10 +112,8 @@ class master():
 
         self.train_step_counter = tf.Variable(0)
 
-        original_time_step_spec = self.train_env.time_step_spec()
-
         self.agent = dqn_agent.DqnAgent(
-            self.train_env.time_step_spec(),
+            self.apply_render_distance_time_step_spec(self.train_env.time_step_spec(), self.render_distance),
             self.train_env.action_spec(),
             q_network=_q_net,
             optimizer=_optimizer,
@@ -103,8 +125,9 @@ class master():
         _eval_policy = self.agent.policy
         _collect_policy = self.agent.collect_policy
 
-        self.random_policy = random_tf_policy.RandomTFPolicy(self.train_env.time_step_spec(),
-                                                         self.train_env.action_spec())
+        self.random_policy = random_tf_policy.RandomTFPolicy(
+            self.apply_render_distance_time_step_spec(self.train_env.time_step_spec(), self.render_distance),
+            self.train_env.action_spec())
         self.agent.train_step_counter.assign(0)
 
     def build_replay_buffer(self):
@@ -139,11 +162,17 @@ class master():
         total_return = 0.0
         for _ in range(num_episodes):
             time_step = environment.reset()
+
+            time_step = self.apply_render_distance_time_step(time_step)
+
             episode_return = 0.0
 
             while not time_step.is_last():
                 action_step = policy.action(time_step)
                 time_step = environment.step(action_step.action)
+
+                time_step = self.apply_render_distance_time_step(time_step)
+
                 episode_return += time_step.reward
             total_return += episode_return
             history = environment._env.envs[0].score_history
@@ -160,19 +189,20 @@ class master():
 
 
     def collect_step(self, environment, policy, buffer):
+
         time_step = environment.current_time_step()
 
-        observation_root = time_step.observation.numpy()
-        observation_root_padded = np.array([np.pad(observation_root[0], (2,), 'median')])
-        player_matrix = observation_root_padded[:, 1, :, :, 3]
-        player_location = np.unravel_index(np.argmax(player_matrix), np.array(player_matrix).shape)[1:3]
-        new_observation = observation_root_padded[:, 2:102, player_location[0] - 1:player_location[0] + 2,
-                          player_location[1] - 1:player_location[1] + 2, 2:5]
 
-        new_ts = ts.TimeStep(time_step.step_type, time_step.reward, time_step.discount, new_observation)
-        action_step = policy.action(new_ts)
+        time_step = self.apply_render_distance_time_step(time_step)
+
+        print(time_step.observation.shape)
+
+        action_step = policy.action(time_step)
         next_time_step = environment.step(action_step.action)
-        traj = trajectory.from_transition(new_ts, action_step, next_time_step)
+
+        next_time_step = self.apply_render_distance_time_step(next_time_step)
+
+        traj = trajectory.from_transition(time_step, action_step, next_time_step)
         buffer.add_batch(traj)
 
     def collect_step_threaded(self, environment, policy, buffer):
@@ -242,12 +272,12 @@ x = threading.Thread(target=rtth.perform_collection, args=())
 x.start()
 
 x = threading.Thread(target=rtth.perform_training, args=())
-x.start()
+#x.start()
 
 x = threading.Thread(target=rtth.perform_checkpoint_save, args=())
-x.start()
+#x.start()
 
 x = threading.Thread(target=rtth.perform_testing, args=())
-x.start()
+#x.start()
 
 
