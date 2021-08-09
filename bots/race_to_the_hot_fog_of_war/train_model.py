@@ -40,7 +40,7 @@ class master():
         self.train_steps = 1000
         self.num_eval_episodes = 10
 
-        self.render_distance = (3, 3)
+        self.render_distance = 5
 
         self.save_policy_dir = os.path.join(_config['files']['policy']['base_dir'],
                                         _config['files']['policy']['save_policy']['dir'],
@@ -68,8 +68,8 @@ class master():
     def apply_render_distance_observation_spec(self, original_observation_spec, render_distance):
         return tensor_spec.BoundedTensorSpec(
             shape=(original_observation_spec.shape[0],
-                   render_distance[0],
-                   render_distance[1],
+                   render_distance,
+                   render_distance,
                    original_observation_spec.shape[3]),
             dtype=np.int32,
             minimum=original_observation_spec.minimum,
@@ -83,18 +83,22 @@ class master():
                            self.apply_render_distance_observation_spec(original_time_step_spec.observation,
                                                                        render_distance))
 
-    def apply_render_distance_time_step(self, original_time_step):
+    def apply_render_distance_time_step(self, original_time_step, render_distance):
+        offset = 1
+        padding = render_distance - offset
+
         observation_root = original_time_step.observation.numpy()
-        observation_root_padded = np.array([np.pad(observation_root[0], (2,), 'median')])
+        observation_root_padded = np.array([np.pad(observation_root[0], (padding,), 'median')])
         player_matrix = observation_root_padded[:, 1, :, :, 3]
         player_location = np.unravel_index(np.argmax(player_matrix), np.array(player_matrix).shape)[1:3]
         if player_location == (0, 0):
-            player_location = (1, 1)
-        new_observation = observation_root_padded[:, 2:102, player_location[0] - 1:player_location[0] + 2,
-                          player_location[1] - 1:player_location[1] + 2, 2:5]
-
-        if new_observation.shape == (1, 100, 0, 0, 3):
-            lol = 1
+            player_location = (round(observation_root.shape[2]/2), round(observation_root.shape[3]/2))
+        new_observation = observation_root_padded[
+                          :,
+                          padding:observation_root.shape[1] + padding,
+                          player_location[0] - offset:player_location[0] + padding,
+                          player_location[1] - offset:player_location[1] + padding,
+                          padding:padding + 3]
 
         return ts.TimeStep(original_time_step.step_type,
                              original_time_step.reward,
@@ -165,7 +169,7 @@ class master():
         for _ in range(num_episodes):
             time_step = environment.reset()
 
-            time_step = self.apply_render_distance_time_step(time_step)
+            time_step = self.apply_render_distance_time_step(time_step, self.render_distance)
 
             episode_return = 0.0
 
@@ -173,7 +177,7 @@ class master():
                 action_step = policy.action(time_step)
                 time_step = environment.step(action_step.action)
 
-                time_step = self.apply_render_distance_time_step(time_step)
+                time_step = self.apply_render_distance_time_step(time_step, self.render_distance)
 
                 episode_return += time_step.reward
             total_return += episode_return
@@ -195,12 +199,12 @@ class master():
         time_step = environment.current_time_step()
 
 
-        time_step = self.apply_render_distance_time_step(time_step)
+        time_step = self.apply_render_distance_time_step(time_step, self.render_distance)
 
         action_step = policy.action(time_step)
         next_time_step = environment.step(action_step.action)
 
-        next_time_step = self.apply_render_distance_time_step(next_time_step)
+        next_time_step = self.apply_render_distance_time_step(next_time_step, self.render_distance)
 
         traj = trajectory.from_transition(time_step, action_step, next_time_step)
         buffer.add_batch(traj)
